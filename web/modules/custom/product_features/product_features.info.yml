@@ -1,0 +1,8 @@
+name: Product features
+type: module
+description: Provide new content type
+package: Custom
+core_version_requirement: ^8 || ^9 || ^10 || ^11
+
+version: '10.0.0'
+project: 'product features'

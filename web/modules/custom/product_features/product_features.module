@@ -1,0 +1,197 @@
+<?php
+
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\node\Entity\NodeType;
+use Drupal\field\Entity\FieldStorageConfig;
+use Drupal\field\Entity\FieldConfig;
+
+/**
+ * Implements hook_install().
+ */
+function product_features_install() {
+
+    $bundle = 'product';
+    // Create or update the node type 'product'.
+    createOrUpdateNodeType($bundle);
+    // Create the fields for 'product' node type.
+    createOrUpdateFields($bundle);
+}
+
+/**
+ * Create or update 'product' node type.
+ */
+function createOrUpdateNodeType($bundle) {
+    $bundle = 'product';
+
+    // Check if the content type exists.
+    $existing_types = NodeType::loadMultiple();
+    if (!isset($existing_types[$bundle])) {
+        // Create the content type.
+        $content_type = NodeType::create([
+        'type' => $bundle,
+        'name' => t('Product'),
+        'description' => t('Add new product.'),
+        'display_submitted' => FALSE,
+        ]);
+        $content_type->save();
+    }
+}
+
+/**
+ * Create or update fields for 'product' node type.
+ */
+function createOrUpdateFields($bundle) {
+  $entity_type = 'node';
+
+  // Define fields to be created.
+  $fields = [
+    [
+      'field_name' => 'product_image',
+      'label' => t('Product image'),
+      'type' => 'image',
+      'required' => FALSE,
+      'translatable' => TRUE,
+      'status' => TRUE,
+      'settings' => [
+        'uri_scheme' => 'public',
+        'max_filesize' => '2 MB',
+        'file_extensions' => 'png jpg jpeg',
+      ],
+      'cardinality' => 20,
+    ],
+    [
+        'field_name' => 'product_description',
+        'label' => t('Product Description'),
+        'type' => 'text_long',
+        'required' => TRUE,
+        'translatable' => TRUE,
+        'status' => TRUE,
+        'settings' => [],
+        'cardinality' => 1,
+    ],
+  ];
+
+  // To create and validate if the field is already there.
+
+  fieldCreation($fields, $entity_type, $bundle);
+
+}
+
+function fieldCreation($fields, $entity_type, $bundle) {
+      // Loop through the fields and create them.
+  foreach ($fields as $field) {
+    // Check if field storage exists.
+    $existing_field_storage = FieldStorageConfig::loadByName($entity_type, $field['field_name']);
+    if (!$existing_field_storage) {
+      // Create the field storage.
+      $field_storage = FieldStorageConfig::create([
+        'field_name' => $field['field_name'],
+        'entity_type' => $entity_type,
+        'type' => $field['type'],
+        'settings' => $field['settings'] ?? [],
+        'cardinality' => $field['cardinality'] ?? 1,
+        'translatable' => $field['translatable'] ?? TRUE,
+      ]);
+      $field_storage->save();
+    }
+
+    // Check if field instance exists in the specified bundle.
+    $field_instance_exists = \Drupal::entityTypeManager()
+      ->getStorage('field_config')
+      ->loadByProperties([
+        'field_name' => $field['field_name'],
+        'bundle' => $bundle,
+        'entity_type' => $entity_type,
+      ]);
+
+    if (empty($field_instance_exists)) {
+      // Create the field instance if it does not exist.
+      $field_instance = FieldConfig::create([
+        'field_storage' => $existing_field_storage,
+        'bundle' => $bundle,
+        'entity_type' => $entity_type,
+        'field_name' => $field['field_name'],
+        'label' => $field['label'],
+        'required' => $field['required'],
+        'settings' => $field['settings'] ?? [],
+        'cardinality' => $field['cardinality'] ?? 1,
+        'translatable' => $field['translatable'] ?? TRUE,
+      ]);
+      $field_instance->save();
+    }
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter() for node type form.
+ */
+function product_features_form_node_form_alter(&$form, FormStateInterface $form_state, $form_id) {
+    // Obtém o node do formulário (caso exista).
+    $node = $form_state->getFormObject()->getEntity();
+
+    $entity_type = $node->getEntityTypeId();
+
+    // Verifique se o node existe e se o tipo de conteúdo é "product".
+    if ($node->getType() !== 'product') {
+        return;
+    }
+
+    $fields = [
+        [
+            'field_name' => 'product_price',
+            'label' => t('Product Price'),
+            'description' => 'Enter the product price.',
+            'type' => 'decimal',
+            'required' => TRUE,
+            'translatable' => TRUE,
+            'status' => TRUE,
+            'settings' => [
+                'precision' => 10,
+                'scale' => 2,
+            ],
+            'cardinality' => 1,
+        ],
+    ];
+
+    fieldCreation($fields, $entity_type, $node->getType());
+
+    // Adiciona uma validação customizada para o campo "product_price" para garantir que seja um valor numérico.
+    $form['#validate'][] = 'product_features_product_price_validate';
+  }
+
+/**
+ * Função de validação personalizada para o campo "product_price".
+ */
+function product_features_product_price_validate($form, FormStateInterface $form_state) {
+    // Acesse o valor do campo 'product_price' que é um array.
+    $price = $form_state->getValue('product_price')[0]['value'];
+  
+    // Verifique se o campo contém um valor e obtenha o valor de 'value' do array.
+    if (isset($price)) {
+      
+        // Verifique se o valor do preço é um número válido.
+        if (!is_numeric($price)) {
+            $form_state->setErrorByName('product_price', t('The product price must be a numeric value.'));
+        }
+    } else {
+        // Se o campo 'product_price' não contiver um valor, defina um erro.
+        $form_state->setErrorByName('product_price', t('The product price is required.'));
+    }
+}
+
+/**
+ * Implements hook_node_presave().
+ */
+function product_features_node_presave(Drupal\node\NodeInterface $node) {
+    // Verifique se o nó é do tipo "product".
+    if ($node->getType() == 'product') {
+      // Obtém o valor do campo "product_price" do formulário.
+      $product_price = \Drupal::request()->request->get('product_price');
+      
+      // Verifique se o valor foi fornecido e armazene no campo do nó.
+      if ($product_price) {
+        // Salva o valor no campo customizado do nó.
+        $node->set('product_price', $product_price);
+      }
+    }
+}

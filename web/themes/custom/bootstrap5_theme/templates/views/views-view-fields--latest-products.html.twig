@@ -1,0 +1,29 @@
+<div class="views-row">
+
+  <!-- Título: Centralizado no topo -->
+  <div class="views-field views-field-title text-center">
+    <h2>{{ row._entity.title.value }}</h2>
+  </div>
+
+  <div class="content-group">
+    <div class="views-field views-field-product-image">
+      <div class="field-content">
+        <!-- Imagem do Produto: À esquerda -->
+        {% if row._entity.product_image is not empty %}
+          {% set image_uri = row._entity.product_image.0.entity.uri.value %}
+          {% set image_url = image_uri|replace({'public://': '/sites/default/files/'}) %}
+          <img src="{{ image_url }}" alt="Product Image" class="img-fluid">
+        {% else %}
+          <p>No image available</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="views-field views-field-product-description">
+      <div class="field-content">
+        <!-- Descrição do Produto: À direita -->
+        <p>{{ row._entity.product_description.value|raw }}</p>
+      </div>
+    </div>
+  </div>
+</div>

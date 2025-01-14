@@ -1,0 +1,14 @@
+/* .product_title {
+    text-align: center;
+    padding-bottom: 2rem;
+}
+
+.product-image .field__label {
+    display: none;
+} */
+
+
+.content-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+}

@@ -1,0 +1,12 @@
+name: 'Bootstrap 5 Theme'
+type: theme
+base theme: bootstrap5
+description: 'A custom theme using Bootstrap 5'
+core_version_requirement: ^8 || ^9 || ^10 || ^11
+libraries:
+  - bootstrap5_theme/global-styling
+regions:
+  header: 'Header'
+  primary_menu: 'Primary menu'
+  footer: 'Footer'
+  content: 'Content'
